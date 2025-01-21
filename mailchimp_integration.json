@@ -1,0 +1,541 @@
+{
+  "name": "BiocoopNaturellement_mailchimp_integration",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Create Mailchimp & OFN Credentials\n- Add the Mailchimp API key of the user in N8N \"Credentials\" tab. [See the doc](https://docs.n8n.io/integrations/builtin/credentials/mailchimp/)\n\n- Add the OFN API key of your user by creating a \"Query auth\" in N8N credentials tab. [See the doc](https://ofn-user-guide.gitbook.io/ofn-api-handbook/n8n-integrations-server/authenticating-apps)\n",
+        "height": 178.06590735035883,
+        "width": 556.8240207957331
+      },
+      "id": "a4e8c9ef-0545-4c46-b5fc-677043b2e5f4",
+      "name": "Sticky Note5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        460,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Import your contacts from OFN to Mailjet list\n\nIn Mailchimp there's only one list, called audience, where you store and manage all of your contacts.\n\nThus you can't add a contact to a list but you can add tags to contacts. \n\n\n**1. Schedule trigger** Choose the frequency you want the list to be updated (Double click on the node to configure it)\n\n**2. OFN**\nIn \"Credential for Query Auth\", choose your user credentials\nIn \"Query parameters\" > *enterprise_id,* set the shop ID of your user\n\n**3,4,5: Mailchimp**\nIn \"Credential to connect with\", choose your user credentials\nIn  \"List Name or ID\", choose the available value in the dropdown\nIn \"tags\", add a tag if you want\n\n\n**Click on \"Execute workflow\" once** The list will be imported.\n\n**Activate your workflow** (click on the toggle on the top right of your screen). Your contact list will be updated automatically! 🤟\n\n",
+        "height": 988.1079716480624,
+        "width": 2075.962650612467
+      },
+      "id": "b7c69af9-7b07-4250-ae01-5f752bf4d7b6",
+      "name": "Sticky Note6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        460,
+        656
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c48171cb-0a21-4eba-8001-a9324cf7060b",
+      "name": "Execute Workflow",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        520,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {page: 1}\n]"
+      },
+      "id": "141beb71-2d1c-4b2a-934a-b1ba2285e439",
+      "name": "Set initial page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        840,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\npage = items[0].json.meta.pagination.page + 1;\nconsole.log(\"page\" + page)\n\nreturn [{page}];"
+      },
+      "id": "b57f21f6-c4eb-4e2e-b612-c21a62d94deb",
+      "name": "Update page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        1460
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.meta.pagination.pages }}",
+              "operation": "equal",
+              "value2": 1
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "6bf5158f-6feb-4159-8467-51e5b84001eb",
+      "name": "IF only 1 page",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        1260
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Iterate the HTTP call if there is more than 200 customers ",
+        "height": 417.1640319201789,
+        "width": 834.5350685097317
+      },
+      "id": "6ff9fc8a-bfe5-4ef7-9832-7ef2c4d8747d",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        817,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.meta.pagination.page }}",
+              "operation": "equal",
+              "value2": "={{ $json.meta.pagination.pages }}"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "d1155a45-d9a9-435b-b09d-56a73c6d1ac6",
+      "name": "IF last page1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        1440
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "5943f5a9-a76c-4c8f-b6ef-821112296d22",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        980
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var mailchimpMails = []\nvar myEmails = []\n\nitems.forEach (match => {\n  const mailchimpMail = match.json.email_address\n  \n  if(mailchimpMail != null){\n    mailchimpMails.push({\n          email : mailchimpMail,\n          firstName: match.json.merge_fields.FNAME,\n          lastName: match.json.merge_fields.LNAME,\n          address:{\n            addr1:match.json.merge_fields.ADDRESS.addr1,\n            city:match.json.merge_fields.ADDRESS.city,\n            zip:match.json.merge_fields.ADDRESS.zip,\n            state:match.json.merge_fields.ADDRESS.state,\n            country:match.json.merge_fields.ADDRESS.country\n          },\n          phone: match.json.merge_fields.PHONE,\n      \n      })\n  } else {\n    myEmails.push({\n          email : match.json.email,  \n          firstName : match.json.firstName,\n          lastName: match.json.lastName,\n          address:{\n              addr1: match.json.address.addr1,\n              city: match.json.address.city,             \n              zip: match.json.address.zip,\n              state:match.json.address.state,\n              country:match.json.address.country\n          },\n          phone: match.json.phone   \n      })\n  }      \n})\n\nconst mailsToCreate = myEmails.filter(it => !mailchimpMails.find(otherItem => JSON.stringify(it.email) === JSON.stringify(otherItem.email)))\n\nconst mailsToUpdate = myEmails.filter(it => mailchimpMails.find(otherItem => JSON.stringify(it.email) === JSON.stringify(otherItem.email)))\n\nreturn {\n  \"mailsToCreate\": mailsToCreate, \n  \"mailsToUpdate\": mailsToUpdate\n}\n"
+      },
+      "id": "afd78a62-7208-4c2e-a5b2-2a88e6e76ead",
+      "name": "Data mapping",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        980
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "mailsToCreate",
+        "options": {}
+      },
+      "id": "f2c858c1-2e90-49a7-a670-cf9170a03f99",
+      "name": "Item Lists1",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        980
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "var emails = []\nconsole.log($items(\"2 OFN - Get customers list\"))\n\nlet counter = 0;\ndo {\n  try {\n    const items = $items(\"2 OFN - Get customers list\", 0, counter).map(\n      element => {\n      element.json.data.forEach(match => {\n        console.log(\"fname=\"+match.attributes.billing_address)\n\n        if(match.attributes.billing_address){\n          emails.push({\n            email : match.attributes.email,\n            firstName: match.attributes.first_name,\n            lastName: match.attributes.last_name,\n            address: {\n              addr1: match.attributes.billing_address.street_address_1,\n              city: match.attributes.billing_address.locality,\n              zip: match.attributes.billing_address.postal_code,\n              state:match.attributes.billing_address.region.name,\n              country:match.attributes.billing_address.country.name\n            },\n            phone: match.attributes.billing_address.phone\n            })\n        } else {\n            emails.push({\n              email : match.attributes.email,\n              firstName: match.attributes.first_name,\n              lastName: match.attributes.last_name,\n              address: {\n                 addr1:\"\",\n                city: \"\",\n                zip: \"\",\n                state:\"\",\n                country:\"\"\n              },\n              phone: \"\"\n            })\n        }\n     })\n  })\n } catch (error) {\n    console.log(error)\n    return emails\n  }\n  counter++;\n} while (true);\n"
+      },
+      "id": "4005ba3e-dbcd-48af-a7a7-5e45f7347c79",
+      "name": "my email list",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        1240
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Create or update contact",
+        "height": 417.1640319201789,
+        "width": 985.8862414733442
+      },
+      "id": "47eb3445-a4bb-45f1-95f6-82677fc2e50c",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1480,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## API doc \nhttps://mailchimp.com/developer/marketing/api/list-members/add-member-to-list/",
+        "height": 190.88741091569608,
+        "width": 367.4105700272464
+      },
+      "id": "fb0c2548-d6e4-481c-8ce8-f49e42f398b0",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2100,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 50,
+        "options": {}
+      },
+      "id": "46f8af43-fa89-484e-b510-3bf2bfd3186a",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        2160,
+        980
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "id": "0bba3bb1-a0fe-494a-8524-e755593ba465",
+      "name": "1 Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        520,
+        1400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://staging.openfoodswitzerland.ch/api/v1/customers",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "enterprise_id",
+              "value": "3"
+            },
+            {
+              "name": "page",
+              "value": "={{ $json.page }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7269fb57-2219-4a24-ab4f-47dc17668bf1",
+      "name": "2 OFN - Get customers list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1000,
+        1260
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "hTZG8xn2Abmr0RYJ",
+          "name": "Staging OFN v1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "list": "=96d672760d",
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "19689593-0277-4d80-8b11-c48de93e0d97",
+      "name": "3 Mailchimp Get members",
+      "type": "n8n-nodes-base.mailchimp",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        860
+      ],
+      "credentials": {
+        "mailchimpApi": {
+          "id": "PXrnUfu8963pLn9M",
+          "name": "Mailchimp account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "list": "96d672760d",
+        "email": "={{ $json.email }}",
+        "status": "pending",
+        "options": {},
+        "mergeFieldsUi": {
+          "mergeFieldsValues": [
+            {
+              "name": "ADDRESS",
+              "value": "={{ $json.address }}"
+            },
+            {
+              "name": "FNAME",
+              "value": "={{ $json.firstName }}"
+            },
+            {
+              "name": "LNAME",
+              "value": "={{ $json.lastName }}"
+            },
+            {
+              "name": "PHONE",
+              "value": "={{ $json.phone }}"
+            }
+          ]
+        }
+      },
+      "id": "fb453bb8-b6a9-458f-9b4f-85f3268104b6",
+      "name": "4 Mailchimp Create",
+      "type": "n8n-nodes-base.mailchimp",
+      "typeVersion": 1,
+      "position": [
+        2340,
+        980
+      ],
+      "credentials": {
+        "mailchimpApi": {
+          "id": "PXrnUfu8963pLn9M",
+          "name": "Mailchimp account"
+        }
+      },
+      "continueOnFail": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Execute Workflow": {
+      "main": [
+        [
+          {
+            "node": "Set initial page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set initial page": {
+      "main": [
+        [
+          {
+            "node": "2 OFN - Get customers list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update page": {
+      "main": [
+        [
+          {
+            "node": "2 OFN - Get customers list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF only 1 page": {
+      "main": [
+        [
+          {
+            "node": "my email list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF last page1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF last page1": {
+      "main": [
+        [
+          {
+            "node": "my email list",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Data mapping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "my email list": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Data mapping": {
+      "main": [
+        [
+          {
+            "node": "Item Lists1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Item Lists1": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "4 Mailchimp Create",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1 Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set initial page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2 OFN - Get customers list": {
+      "main": [
+        [
+          {
+            "node": "IF only 1 page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3 Mailchimp Get members": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4 Mailchimp Create": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0efe08bf-6649-40d8-b940-6a10b83e1903",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "43671c6505934250144706bdb4836234f442867c8b9ea2faf5423f9051e639b9"
+  },
+  "id": "dCNb6j9n1KiVPPUs",
+  "tags": [
+    {
+      "createdAt": "2024-02-12T17:02:58.718Z",
+      "updatedAt": "2024-02-12T17:02:58.718Z",
+      "id": "nPTYsH7tQPpDVDOY",
+      "name": "Customers API v1"
+    }
+  ]
+}
