@@ -1,0 +1,186 @@
+{
+  "name": "Aleko - Delivery Report - Coop Cycle copy",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "\n select id from order_cycles where orders_open_at >= '{{ $json.query.starting_date }}'::date and orders_close_at <= '{{ $json.query.end_date }}'::date and coordinator_id = 1\n",
+        "options": {}
+      },
+      "id": "57f7d2eb-b5ce-4f8b-839a-da5b7c63272e",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        160,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "iiEoOhycrPB2Gqz3",
+          "name": "Postgres account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select  e.name as Group,\n        concat(concat(cu.first_name, ' '), cu.last_name) AS Consumer, \n        cu.email AS Email,\n        cu.id AS customer_Id,\n        sa.phone AS shipment_phone, \n        s.name AS producer,\n        supplierAddress.address1 as producer_address_1,\n        supplierAddress.address2 as producer_address_2,\n        supplierAddress.city as producer_city,\n        supplierAddress.zipcode as producer_zip_code,\n        p.name AS product, \n        v.display_name AS variant, \n        sli.quantity AS quantity, \n        (sli.price * sli.quantity) AS items_Euro, \n        (sli.price * sli.quantity) AS Items_commissions,\n        null AS Administration_management,\n        sh.cost AS shipment_cost_euro,\n        sad.amount AS comision_euro,\n        o.total AS Total_euro,\n        (case \n\t        when 'paid' = o.payment_state \n            then 'Yes' \n            else 'No' \n         end) AS payed,\n         o.special_instructions as instructions,\n         sm.name as shipment_instructions,\n         (case \n\t        when 'shipped' = o.shipment_state \n            then 'Yes' \n            else 'No' \n         end) AS delivered,\n         sa.address1 AS shipment_address_1, \n         sa.address2 AS shipment_address_2,\n         sa.city AS shipment_city,\n         sa.zipcode AS shipment_zip_code, \n         sa.state_name AS shipment_region,\n         v.SKU AS SKU, \n         v.weight as weight,\n         v.height as heigth, \n         v.width as width,\n         v.depth as depth, \n         oc.\"name\" AS cycle_order_name, \n         pm.name AS payment_method,\n         cu.code as consumer_code,\n         ba.address1 AS address_billing_1, \n         ba.address2 AS address_billing_2,\n         ba.city AS city_billing,\n         ba.zipcode AS zipcode_billing, \n         ba.state_name AS region_billing,\n         o.number AS order_number,\n         o.completed_at AS date\n  from spree_orders AS o \n  join customers AS cu on cu.id = o.customer_id\n  join spree_addresses AS sa on sa.id = cu.ship_address_id\n  join spree_addresses AS ba on ba.id = cu.bill_address_id \n  join enterprises AS e on e.id = o.distributor_id \n  join spree_line_items AS sli on o.id = sli.order_id\n  join spree_variants AS v on sli.variant_id = v.id\n  join spree_products AS p on p.id = v.product_id\n  join enterprises AS s on s.id = v.supplier_id\n  join spree_addresses as supplierAddress on supplierAddress.id = s.address_id \n  join spree_shipments AS sh on sh.order_id = o.id\n  join spree_shipping_rates AS sr on (sr.shipment_id = sh.id and sr.selected is true) \n  join spree_shipping_methods AS sm on (sr.shipping_method_id = sm.id)\n  join order_cycles AS oc on oc.id = o.order_cycle_id \n  join spree_payments AS pay on (pay.order_id = o.id and pay.state='completed')\n  join spree_payment_methods AS pm on pm.id = pay.payment_method_id\n  join spree_adjustments AS sad on (sad.order_id = o.id and sad.originator_type = 'Spree::PaymentMethod' and (sad.state = 'finalized' or sad.state = 'closed'))\n  where o.order_cycle_id in {{ $json.ids.replace(/\\[/g,'(').replace(/\\]/g,')') }} and o.state = 'complete' \n",
+        "options": {}
+      },
+      "id": "7e469afc-9ee8-4760-9fd3-1314e30bd01d",
+      "name": "Postgres2",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        860,
+        420
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "jCZLOCfRh8afMypN",
+          "name": "Postgres Katuma "
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "e7fb29b0-900e-4209-928a-d8a9848edce0",
+        "authentication": "basicAuth",
+        "responseMode": "lastNode",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "id": "d73904d6-1a43-464d-b500-6e0a0d094123",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        420
+      ],
+      "webhookId": "e7fb29b0-900e-4209-928a-d8a9848edce0",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "qfQdZTEgOXoRe7uZ",
+          "name": "Credentials CoopCycle"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "id",
+              "renameField": true,
+              "outputFieldName": "ids"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7dc08a1f-c345-49ac-868d-ddbd54faa479",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        340,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4d55649a-12e8-4a8d-974f-f61b4d317d4c",
+              "name": "ids",
+              "value": "={{ $json.ids }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "292f3f3a-375e-4b9e-bafb-ad8fb65be678",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        580,
+        420
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Postgres2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres2": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "98b0c04e-4333-47f4-917b-020538afb030",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "28870f2868c6821b7375131334e38ef8f27782bd5b2dd7efd016a3383f12b722"
+  },
+  "id": "N7qi2ZCLVEPz7krN",
+  "tags": [
+    {
+      "createdAt": "2024-12-09T10:33:11.852Z",
+      "updatedAt": "2024-12-09T10:33:11.852Z",
+      "id": "4mjX3r5aSrbNHybj",
+      "name": "IB"
+    }
+  ]
+}
