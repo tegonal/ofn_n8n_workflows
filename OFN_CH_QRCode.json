@@ -1,0 +1,510 @@
+{
+  "name": "OFN-CH QRCode diraktakt copy",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select * \n  from public.spree_orders as o\n  join public.enterprises as e on e.id = o.distributor_id \n  join public.spree_addresses as a on a.id = e.address_id \n  where state = 'complete' and payment_state = 'balance_due' and distributor_id = {{ $json[\"Enterprise_id\"] }} order by completed_at desc LIMIT 1",
+        "options": {}
+      },
+      "id": "e1228b6b-5ec0-44ff-857b-d285fc4e83cd",
+      "name": "Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        600,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "iiEoOhycrPB2Gqz3",
+          "name": "Postgres account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bf870226-d227-43df-bab5-4737c7e677db",
+              "name": "Enterprise_id",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "4bf641e0-ddfe-4922-aee8-50672030ae1e",
+              "name": "language",
+              "value": "de",
+              "type": "string"
+            },
+            {
+              "id": "c6499224-6a45-419d-9727-584f24222173",
+              "name": "IBAN",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "10a26150-2df7-4b7b-b209-a1b9e3c78092",
+              "name": "twintLink",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "47b22dfb-c9cc-43a3-a0b9-421fb4778ecc",
+              "name": "referenceCode",
+              "value": "={{ $json.referenceCode }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3e0ee445-ea41-4a61-a07c-2ba9237b0ad7",
+      "name": "Set Parameters for the query",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.codecrete.net/qrbill-api/bill/image/{{ $json.billID}}?graphicsFormat=png",
+        "options": {}
+      },
+      "id": "abe3bf30-47d1-4ab6-94ec-20b917740a6f",
+      "name": "Generate qrcode pdf",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1020,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.codecrete.net/qrbill-api/bill/validated",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"version\":\"V2_0\",\n   \"account\":\"\",\n   \"creditor\":{\n      \"name\":\"{{ $json[\"name\"] }}\",\n      \"street\":\"{{ $json[\"address1\"] }}\",\n      \"houseNo\":\"\",\n      \"countryCode\":\"CH\",\n      \"postalCode\":\"{{ $json[\"zipcode\"] }}\",\n      \"town\":\"{{ $json[\"city\"] }}\"\n   },\n   \"currency\":\"{{ $json[\"currency\"] }}\",\n   \"amount\":{{ $json[\"total\"] }},\n   \"unstructuredMessage\":\"\",\n   \"billInformation\":\"\",\n   \"format\":{\n      \"language\":\"{{ $('Set Parameters for the query').item.json[\"language\"] }}\",\n      \"outputSize\":\"qr-bill-only\",\n      \"separatorType\":\"dashed-line-with-scissors\"\n   },\n   \"reference\": \"{{ $('Set Parameters for the query').item.json.referenceCode }}\"\n}\n",
+        "options": {}
+      },
+      "id": "583cabec-3ed5-4398-8375-2346e4e2632e",
+      "name": "submit QR code data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ml9sszyzmsnz.i.optimole.com/w:1521/h:529/q:mauto/f:best/https://www.openfoodswitzerland.ch/wp-content/uploads/2024/05/cropped-OFN-schweiz_noMargins_transparent.png",
+        "options": {}
+      },
+      "id": "32d7a742-adc9-408b-a251-c1391669715c",
+      "name": "getLogo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {}
+      },
+      "id": "876145ff-c8e6-41d4-8a39-9f219a6f3cb0",
+      "name": "Extract from File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sendGridApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n   \"from\":{\n      \"email\":\"info@openfoodswitzerland.ch\"\n   },\n   \"attachments\":[{\n\t \"content\": \"{{ $json[\"data\"] }}\",\n     \"type\":  \"image/png\",\n\t \"filename\": \"qrcode.png\",\n     \"disposition\": \"inline\",\n     \"content_id\": \"qrcode.png\"\n   }],\n   \"personalizations\":[\n      {\n         \"to\":[\n            {\n               \"email\":\"{{ $('Postgres').item.json[\"email\"] }}\"\n            }\n         ],\n         \"dynamic_template_data\":{\n            \"name\":\"{{ $('Postgres').item.json[\"contact_name\"] }}\",\n            \"twintLink\":\"{{$('Set Parameters for the query').params[\"assignments\"][\"assignments\"][3][\"value\"]}}\",\n            \"amount\":\"{{ $('Postgres').item.json[\"total\"] }}\"\n          }\n      }\n   ],\n   \"template_id\":\"d-b6aff8e412a44b71bee9556e98a8770e\"\n}",
+        "options": {}
+      },
+      "id": "cb1665ed-03ad-4352-9794-5ad8cb8ed320",
+      "name": "Send Email Sendgrid template FR",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1720,
+        20
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "UpPjiEU04oOgq7Tl",
+          "name": "SendGrid account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sendGridApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n   \"from\":{\n      \"email\":\"info@openfoodswitzerland.ch\"\n   },\n   \"attachments\":[{\n\t \"content\": \"{{ $json[\"data\"] }}\",\n     \"type\":  \"image/png\",\n\t \"filename\": \"qrcode.png\",\n     \"disposition\": \"inline\",\n     \"content_id\": \"qrcode.png\"\n   }],\n   \"personalizations\":[\n      {\n         \"to\":[\n            {\n               \"email\":\"{{ $('Postgres').item.json[\"email\"] }}\"\n            }\n         ],\n         \"dynamic_template_data\":{\n            \"name\":\"{{ $('Postgres').item.json[\"contact_name\"] }}\",\n            \"twintLink\":\"{{$('Set Parameters for the query').params[\"assignments\"][\"assignments\"][3][\"value\"]}}\",\n            \"amount\":\"{{ $('Postgres').item.json[\"total\"] }}\"\n          }\n      }\n   ],\n   \"template_id\":\"d-b6aff8e412a44b71bee9556e98a8770e\"\n}",
+        "options": {}
+      },
+      "id": "6b21fd8f-7de0-4695-a94d-603c9b452101",
+      "name": "Send Email Sendgrid template DE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1720,
+        260
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "UpPjiEU04oOgq7Tl",
+          "name": "SendGrid account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sendGridApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n   \"from\":{\n      \"email\":\"info@openfoodswitzerland.ch\"\n   },\n   \"attachments\":[{\n\t \"content\": \"{{ $json[\"data\"] }}\",\n     \"type\":  \"image/png\",\n\t \"filename\": \"qrcode.png\",\n     \"disposition\": \"inline\",\n     \"content_id\": \"qrcode.png\"\n   }],\n   \"personalizations\":[\n      {\n         \"to\":[\n            {\n               \"email\":\"{{ $('Postgres').item.json[\"email\"] }}\"\n            }\n         ],\n         \"dynamic_template_data\":{\n            \"name\":\"{{ $('Postgres').item.json[\"contact_name\"] }}\",\n            \"twintLink\":\"{{$('Set Parameters for the query').params[\"assignments\"][\"assignments\"][3][\"value\"]}}\",\n            \"amount\":\"{{ $('Postgres').item.json[\"total\"] }}\"\n          }\n      }\n   ],\n   \"template_id\":\"d-b6aff8e412a44b71bee9556e98a8770e\"\n}",
+        "options": {}
+      },
+      "id": "da2f2466-f7bf-48ec-919d-8c584b9fc99d",
+      "name": "Send Email Sendgrid template IT",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1720,
+        540
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "UpPjiEU04oOgq7Tl",
+          "name": "SendGrid account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "sendGridApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n   \"from\":{\n      \"email\":\"info@openfoodswitzerland.ch\"\n   },\n   \"attachments\":[{\n\t \"content\": \"{{ $json[\"data\"] }}\",\n     \"type\":  \"image/png\",\n\t \"filename\": \"qrcode.png\",\n     \"disposition\": \"inline\",\n     \"content_id\": \"qrcode.png\"\n   }],\n   \"personalizations\":[\n      {\n         \"to\":[\n            {\n               \"email\":\"{{ $('Postgres').item.json[\"email\"] }}\"\n            }\n         ],\n         \"dynamic_template_data\":{\n            \"name\":\"{{ $('Postgres').item.json[\"contact_name\"] }}\",\n            \"twintLink\":\"{{$('Set Parameters for the query').params[\"assignments\"][\"assignments\"][3][\"value\"]}}\",\n            \"amount\":\"{{ $('Postgres').item.json[\"total\"] }}\"\n          }\n      }\n   ],\n   \"template_id\":\"d-b6aff8e412a44b71bee9556e98a8770e\"\n}",
+        "options": {}
+      },
+      "id": "8ac2f653-4819-4dfa-9416-b490acab297c",
+      "name": "Send Email Sendgrid template EN",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1720,
+        780
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "UpPjiEU04oOgq7Tl",
+          "name": "SendGrid account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input Data: You can get these from previous nodes or define them here.\nlet counter = new Date().getTime();\nconsole.log(counter);\nconst ref = \"12345678\" + counter++;  // 21 characters max\nconst rf = \"2715\";  // RF converted to numbers\nlet rfAdd = \"01\";  // Assuming 01 are the check digits\n\n// Combine ref, rf, and rfAdd and convert to a BigInt\nconst refint = BigInt(ref + rf + rfAdd);\n\n// Calculate mod 97\nlet mod = Number(refint % BigInt(97));\n\n// Check if mod is not 1\nif (mod !== 1) {\n    mod = 99 - mod;  // Set mod to correct check digits\n}\n\n// Correct the check digits\nrfAdd = mod.toString().padStart(2, '0');\n\n// Create the final RF code\nconst result = \"RF\" + rfAdd + ref;\nreturn [\n    {\n        json: {\n            referenceCode: result\n        }\n    }\n];"
+      },
+      "id": "b19cb3f6-7c32-4010-85f2-bdc81b0261bc",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        400
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "736dff20-1779-4c85-b833-c1c31908bc01",
+      "name": "When clicking ‘Test workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Set Parameters for the query').params[\"assignments\"][\"assignments\"][1][\"value\"] }}",
+                    "rightValue": "fr",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "1"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "986c58a7-8710-4a12-aeb9-b1d42b8a31f5",
+                    "leftValue": "={{ $('Set Parameters for the query').params[\"assignments\"][\"assignments\"][1][\"value\"] }}",
+                    "rightValue": "de",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "2"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "85e2a9f0-cecf-4438-ad84-fe1e587860bd",
+                    "leftValue": "{{ $('Set Parameters for the query').params[\"assignments\"][\"assignments\"][1][\"value\"] }}",
+                    "rightValue": "it",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "3"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "189a1b2e-c798-47e3-9bd8-13de41a43f73",
+                    "leftValue": "={{ $('Set Parameters for the query').params[\"assignments\"][\"assignments\"][1][\"value\"] }}",
+                    "rightValue": "en|fr|de",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "4"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ec0c6a40-ac1a-47f9-acde-f3cb7b26f13a",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1400,
+        400
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Set Parameters for the query": {
+      "main": [
+        [
+          {
+            "node": "getLogo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres": {
+      "main": [
+        [
+          {
+            "node": "submit QR code data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate qrcode pdf": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "submit QR code data": {
+      "main": [
+        [
+          {
+            "node": "Generate qrcode pdf",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "getLogo": {
+      "main": [
+        [
+          {
+            "node": "Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Set Parameters for the query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Test workflow’": {
+      "main": [
+        []
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send Email Sendgrid template FR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email Sendgrid template DE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email Sendgrid template IT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Email Sendgrid template EN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c2b84c79-5487-4a85-8c64-1be49702a54d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "28870f2868c6821b7375131334e38ef8f27782bd5b2dd7efd016a3383f12b722"
+  },
+  "id": "oTTbDOF5XK4gyuU9",
+  "tags": [
+    {
+      "createdAt": "2024-12-09T10:32:55.147Z",
+      "updatedAt": "2024-12-09T10:32:55.147Z",
+      "id": "Ud2HQqg4DONmytkA",
+      "name": "CH"
+    }
+  ]
+}
