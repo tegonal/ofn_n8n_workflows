@@ -1,0 +1,359 @@
+{
+  "name": "BiocoopNaturellement___Low_stock_alert.json copy",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "14e62cf0-0c8a-42da-b70d-ef6353e92013",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const new_items = [];\n \n// Get static data stored with the workflow\nconst data = $getWorkflowStaticData(\"node\");\n \ndata.ids = data.ids || [];\n \nfor (let i = 0 ; i <  items.length; i++) {\n \n\t// Check if data is already present\n\tif (data.ids.includes(items[i].json.id)) \n    {\n\t\tcontinue;\n\t}\n    else {\n \n\t\t// if new data then add it to an array\n\t\tnew_items.push({\n\t\t\tjson: {\n\t\t\t\tid: items[i].json.id\n\t\t\t},\n\t\t});\n\t}\n}\n \ndata.ids = items.map((item) => item.json.id);\n \n// return new items\nreturn new_items;"
+      },
+      "id": "a986b55e-02df-40a4-b7ad-df34d75897ca",
+      "name": "Polling function",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \"public\".\"spree_stock_items\".\"variant_id\" AS \"id\"\nFROM \"public\".\"spree_stock_items\"\nLEFT JOIN \"public\".\"spree_variants\" \"Spree Variants\" ON \"public\".\"spree_stock_items\".\"variant_id\" = \"Spree Variants\".\"id\" LEFT JOIN \"public\".\"spree_products\" \"Spree Products - Product\" ON \"Spree Variants\".\"product_id\" = \"Spree Products - Product\".\"id\" LEFT JOIN \"public\".\"enterprises\" \"Enterprises - Supplier\" ON \"Spree Products - Product\".\"supplier_id\" = \"Enterprises - Supplier\".\"id\"\nWHERE (\"public\".\"spree_stock_items\".\"count_on_hand\" BETWEEN {{ $json[\"Lower Limit\"] }}\n   AND {{$json[\"Upper Limit\"] }} AND (\"Enterprises - Supplier\".\"id\" ={{ $json[\"Enterprise_id\"] }}) AND \"public\".\"spree_stock_items\".\"deleted_at\" IS NULL AND \"Spree Variants\".\"deleted_at\" IS NULL  and \"public\".\"spree_stock_items\".\"backorderable\" = false)\nLIMIT 1000",
+        "additionalFields": {}
+      },
+      "id": "a00b98f8-69a2-402a-8049-a216e39002c4",
+      "name": "Query to get low stock alert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        -540,
+        740
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "BDbDFFPubYOfMind",
+          "name": "test"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \"public\".\"spree_variants\".\"id\" AS \"id\", \"public\".\"spree_variants\".\"display_name\" AS \"display_name\", \"Spree Products - Product\".\"name\" AS \"Spree Products - Product__name\", \"Enterprises - Supplier\".\"id\" AS \"Enterprises - Supplier__id\", \"Enterprises - Supplier\".\"name\" AS \"Enterprises - Supplier__name\", \"Enterprises - Supplier\".\"contact_name\" AS \"Enterprises - Supplier__contact_name\", \"Enterprises - Supplier\".\"email_address\" AS \"Enterprises - Supplier__email_address\"\nFROM \"public\".\"spree_variants\"\nLEFT JOIN \"public\".\"spree_products\" \"Spree Products - Product\" ON \"public\".\"spree_variants\".\"product_id\" = \"Spree Products - Product\".\"id\" LEFT JOIN \"public\".\"enterprises\" \"Enterprises - Supplier\" ON \"Spree Products - Product\".\"supplier_id\" = \"Enterprises - Supplier\".\"id\"\nWHERE \"public\".\"spree_variants\".\"id\" = {{ $node[\"Polling function\"].json[\"id\"] }}\nLIMIT 1",
+        "additionalFields": {}
+      },
+      "id": "20ce64bf-d266-4903-b053-97bff519d4d4",
+      "name": "Getting Product and Producer details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        -100,
+        740
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "BDbDFFPubYOfMind",
+          "name": "test"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "number": [
+            {
+              "name": "Lower Limit"
+            },
+            {
+              "name": "Upper Limit",
+              "value": 5
+            },
+            {
+              "name": "Enterprise_id",
+              "value": 3
+            }
+          ],
+          "string": [
+            {
+              "name": "language",
+              "value": "fr"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aeb671d5-cc18-4845-a1c8-a51d6f65a124",
+      "name": "Set Parameters for the query",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -760,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "info@openfoodswitzerland.ch",
+        "fromName": "OFN Switzerland",
+        "toEmail": "={{ $json['Enterprises - Supplier__email_address'] }}",
+        "subject": "=Alerte de bas de stock pour  {{ $json['Spree Products - Product__name'] }} -  {{ $json.display_name }}",
+        "contentValue": "=Bonjour {{ $json['Enterprises - Supplier__contact_name'] }}, Ceci est une alerte de rupture de stock pour \"{{ $json['Spree Products - Product__name'] }}\". Merci de vérifier et d'ajouter plus de stock sur OFN.  Merci, l'équipe OFN",
+        "additionalFields": {}
+      },
+      "id": "1551ad79-5c0e-4f7e-98b9-57dc774f1775",
+      "name": "Send alert email french",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        460,
+        460
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "oZ64TlCTshS3HqKU",
+          "name": "SendGrid"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "info@openfoodswitzerland.ch",
+        "fromName": "OFN Switzerland",
+        "toEmail": "={{ $json['Enterprises - Supplier__email_address'] }}",
+        "subject": "=Warnung bei niedrigem Lagerbestand für {{ $json['Spree Products - Product__name'] }} - {{ $json.display_name }}",
+        "contentValue": "=Hallo {{ $json['Enterprises - Supplier__contact_name'] }}, Dies ist eine Warnung über einen niedrigen Lagerbestand für \"{{ $json['Spree Products - Product__name'] }}\". Bitte schauen Sie nach und fügen Sie weitere Bestände auf OFN hinzu.  Danke, OFN Team",
+        "additionalFields": {}
+      },
+      "id": "76372298-1883-4b92-aa5f-bef6fd25cb26",
+      "name": "SendGridSend alert email german",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        460,
+        660
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "oZ64TlCTshS3HqKU",
+          "name": "SendGrid"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "info@openfoodswitzerland.ch",
+        "fromName": "OFN Switzerland",
+        "toEmail": "={{ $json['Enterprises - Supplier__email_address'] }}",
+        "subject": "=Low Stock Alert for  {{ $json['Spree Products - Product__name'] }} -  {{ $json.display_name }}",
+        "contentValue": "=Hi {{ $json['Enterprises - Supplier__contact_name'] }},   This is a low stock alert for \"{{ $json['Spree Products - Product__name'] }}\". Please have a look and add more stock on OFN.  Thanks, OFN Team",
+        "additionalFields": {}
+      },
+      "id": "f8be48d2-cc15-4faa-8773-3cf91a7eaeaf",
+      "name": "Send alert email english",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        460,
+        880
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "oZ64TlCTshS3HqKU",
+          "name": "SendGrid"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "mail",
+        "fromEmail": "info@openfoodswitzerland.ch",
+        "fromName": "OFN Switzerland",
+        "toEmail": "=info@openfoodswitzerland.ch",
+        "subject": "=Error while alerting the user",
+        "contentType": "text/html",
+        "contentValue": "=Hi,<br>\n\nThere was an issue while getting the language in the workflow \"BiocoopNaturellement - Low stock alert\" \nBest Regards",
+        "additionalFields": {}
+      },
+      "id": "b9c8429d-a775-425d-8daa-58448d5fd450",
+      "name": "Send email for error",
+      "type": "n8n-nodes-base.sendGrid",
+      "typeVersion": 1,
+      "position": [
+        460,
+        1120
+      ],
+      "credentials": {
+        "sendGridApi": {
+          "id": "oZ64TlCTshS3HqKU",
+          "name": "SendGrid"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $('Set Parameters for the query').item.json.language }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "fr",
+              "outputKey": "1"
+            },
+            {
+              "value2": "de",
+              "outputKey": "2"
+            },
+            {
+              "value2": "en",
+              "outputKey": "3"
+            },
+            {
+              "operation": "regex",
+              "value2": "ed|fr|de",
+              "outputKey": "4"
+            }
+          ]
+        }
+      },
+      "id": "a6d40a79-2f79-4740-b7e9-79c5b4282846",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        120,
+        740
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Parameters for the query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Polling function": {
+      "main": [
+        [
+          {
+            "node": "Getting Product and Producer details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query to get low stock alert": {
+      "main": [
+        [
+          {
+            "node": "Polling function",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Getting Product and Producer details": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Parameters for the query": {
+      "main": [
+        [
+          {
+            "node": "Query to get low stock alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Send alert email french",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SendGridSend alert email german",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send alert email english",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send email for error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4e56cfd0-e352-4c1e-9a25-08242e837ec9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "43671c6505934250144706bdb4836234f442867c8b9ea2faf5423f9051e639b9"
+  },
+  "id": "7Z0xdp4naq1ahtv5",
+  "tags": [
+    {
+      "createdAt": "2024-02-12T17:06:00.813Z",
+      "updatedAt": "2024-02-12T17:06:00.813Z",
+      "id": "2h6DVsx5NB89HblL",
+      "name": "Database Calls"
+    }
+  ]
+}
