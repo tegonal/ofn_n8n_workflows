@@ -39,24 +39,12 @@ To use these workflows, you'll need:
         Update API endpoints and credentials in the workflows as needed.
         Adjust any specific parameters to fit your requirements.
 
-Included Workflows
+## Included Workflows
 
 Below is a list of the key workflows included in this repository:
 
-    Order Synchronization
-    Automatically sync orders from OFN to a third-party CRM or Google Sheets for reporting.
-
-    User Notifications
-    Send email or SMS notifications to users about new products, orders, or platform updates.
-
-    Data Backup
-    Regularly back up data from your OFN instance to cloud storage (e.g., Google Drive).
-
-    Analytics Integration
-    Push data to analytics platforms like Google Analytics or Mixpanel for advanced tracking.
-
-For detailed instructions on each workflow, refer to the workflows/ directory or the comments within the workflows themselves.
-Customization
+    
+## Customization
 
 These workflows are fully customizable to meet your specific needs:
 
@@ -64,14 +52,14 @@ These workflows are fully customizable to meet your specific needs:
     Add integrations for other tools your organization uses.
     Test workflows in your development environment before deploying them to production.
 
-Contributing
+## Contributing
 
 Contributions are welcome! If you’d like to add new workflows or improve existing ones:
 
-    Fork this repository.
-    Create a new branch for your changes.
-    Submit a pull request with a detailed description of your updates.
+   * Fork this repository.
+   * Create a new branch for your changes.
+   * Submit a pull request with a detailed description of your updates.
 
-License
+## License
 
 This project is licensed under the [MIT License](https://mit-license.org/).
