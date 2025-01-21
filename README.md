@@ -32,13 +32,13 @@ To use these workflows, you'll need:
    cd n8n-ofn-workflows  ```
    
 2. Import the workflows into your n8n instance:
-        * Open your n8n dashboard.
-        * Go to the Workflows section.
-        * Click on Import and upload the .json files from this repository.
+   * Open your n8n dashboard.
+   * Go to the Workflows section.
+   * Click on Import and upload the .json files from this repository.
 
 3. Configure the workflows to match your OFN setup:
-        * Update API endpoints and credentials in the workflows as needed.
-        * Adjust any specific parameters to fit your requirements.
+   * Update API endpoints and credentials in the workflows as needed.
+   * Adjust any specific parameters to fit your requirements.
 
 ## Included Workflows
 
@@ -47,10 +47,9 @@ Coming soon
 ## Customization
 
 These workflows are fully customizable to meet your specific needs:
-
-    * Use n8n’s visual editor to modify nodes and logic.
-    * Add integrations for other tools your organization uses.
-    * Test workflows in your development environment before deploying them to production.
+* Use n8n’s visual editor to modify nodes and logic.
+* Add integrations for other tools your organization uses.
+* Test workflows in your development environment before deploying them to production.
 
 ## Contributing
 
